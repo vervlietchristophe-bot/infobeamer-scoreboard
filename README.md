@@ -1,0 +1,2 @@
+# infobeamer-scoreboard
+Live scoreboard
