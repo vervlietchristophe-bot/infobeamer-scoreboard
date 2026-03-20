@@ -16,8 +16,9 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-USER_HOME="/home/pi"
-SERVICE_USER="pi"
+ACTUAL_USER="${SUDO_USER:-$(logname)}"
+USER_HOME="/home/$ACTUAL_USER"
+SERVICE_USER="$ACTUAL_USER"
 
 echo ""
 echo "=== Scoreboard Pi Setup ==="
@@ -100,7 +101,7 @@ Exec=unclutter -idle 1 -root
 X-GNOME-Autostart-enabled=true
 EOF
 
-chown -R pi:pi "$AUTOSTART_DIR"
+chown -R "$ACTUAL_USER:$ACTUAL_USER" "$AUTOSTART_DIR"
 echo "  Kiosk autostart configured."
 
 # ── 6. Autologin for pi user ──────────────────────────────────────────────────
