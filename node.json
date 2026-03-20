@@ -1,3 +1,5 @@
 {
-    "name": "Scorebord Node"
+    "name": "Scorebord",
+    "permissions": {},
+    "options": "options.json"
 }
