@@ -1,5 +1,4 @@
 {
     "name": "Scorebord",
-    "permissions": {},
-    "options": "options.json"
+    "permissions": {}
 }
