@@ -9,6 +9,7 @@ const wss    = new WebSocketServer({ server });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (_req, res) => res.redirect('/controller.html'));
 
 // ── Match state ───────────────────────────────────────────────────────────────
 let state = {
