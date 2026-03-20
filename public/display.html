@@ -151,6 +151,8 @@ function periodLong(p, t) {
 function render(s) {
   document.getElementById('home-name').textContent  = s.home_name.toUpperCase().slice(0, 14);
   document.getElementById('away-name').textContent  = s.away_name.toUpperCase().slice(0, 14);
+  if (s.home_color) document.querySelector('.pv-home').style.background = s.home_color;
+  if (s.away_color) document.querySelector('.pv-away').style.background = s.away_color;
   document.getElementById('home-score').textContent = s.home_score;
   document.getElementById('away-score').textContent = s.away_score;
 

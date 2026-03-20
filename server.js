@@ -17,6 +17,8 @@ let state = {
   away_name:     'AWAY',
   home_score:    0,
   away_score:    0,
+  home_color:    '#0a1447',
+  away_color:    '#420a0a',
   period:        1,
   total_periods: 2,
   duration_min:  20,
