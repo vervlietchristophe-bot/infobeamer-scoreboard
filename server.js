@@ -25,6 +25,9 @@ let state = {
   minute:        0,
   second:        0,
   match_live:    false,
+  events:        [],
+  last_event:    null,
+  event_seq:     0,
 };
 
 // ── Server-side clock ─────────────────────────────────────────────────────────
@@ -98,7 +101,26 @@ wss.on('connection', (ws) => {
             state.minute     = 0;
             state.second     = 0;
             state.match_live = false;
+            state.events     = [];
+            state.last_event = null;
+            state.event_seq  = 0;
             stopClock();
+            break;
+          case 'add_event': {
+            const evt = {
+              type:   msg.event_type,
+              team:   msg.team,
+              player: msg.player || '',
+              minute: msg.minute || 0,
+              seq:    ++state.event_seq,
+            };
+            state.events     = [evt, ...state.events].slice(0, 100);
+            state.last_event = evt;
+            break;
+          }
+          case 'clear_events':
+            state.events     = [];
+            state.last_event = null;
             break;
         }
         broadcast(state);

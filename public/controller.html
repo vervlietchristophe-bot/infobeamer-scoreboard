@@ -179,6 +179,26 @@ header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-siz
 .time-input input::-webkit-inner-spin-button { -webkit-appearance:none; }
 .time-sep { color:var(--sub); font-weight:700; font-size:16px; }
 
+/* ── Events ── */
+.events-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.events-input { padding:14px 18px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.pill.goal-active   { background:var(--green); color:#000; border-color:var(--green); }
+.pill.yellow-active { background:#FFD700;      color:#000; border-color:#FFD700; }
+.pill.red-active    { background:var(--red);   color:#fff; border-color:var(--red); }
+.evt-badge { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:5px; vertical-align:middle; flex-shrink:0; }
+.timeline { max-height:160px; overflow-y:auto; border-top:1px solid var(--border); }
+.timeline-row {
+  display:flex; align-items:center; gap:10px;
+  padding:7px 18px; border-bottom:1px solid var(--border);
+  font-size:13px; color:var(--text);
+}
+.timeline-row:last-child { border-bottom:none; }
+.timeline-min  { font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--gold); min-width:30px; }
+.timeline-team { font-size:11px; color:var(--sub); }
+.timeline-player { flex:1; }
+.timeline-del  { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 4px; }
+.timeline-del:hover { color:var(--red); }
+
 /* ── Log ── */
 .log-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
 .log-card h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--sub); margin-bottom:8px; }
@@ -319,6 +339,38 @@ header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-siz
     </div>
   </div>
 
+  <!-- Events -->
+  <div>
+    <div class="section-hdr">Match events</div>
+    <div class="events-card" style="margin-top:8px">
+      <div class="events-input">
+        <div class="pill-group" id="evt-type-group">
+          <button class="pill goal-active" id="evt-goal"   onclick="selectEvtType('goal')">⚽ Goal</button>
+          <button class="pill"             id="evt-yellow" onclick="selectEvtType('yellow')">
+            <span class="evt-badge" style="background:#FFD700"></span>Yellow
+          </button>
+          <button class="pill"             id="evt-red"    onclick="selectEvtType('red')">
+            <span class="evt-badge" style="background:#ef4444"></span>Red
+          </button>
+        </div>
+        <div class="pill-group">
+          <button class="pill active" id="evt-home-btn" onclick="selectEvtTeam('home')">Home</button>
+          <button class="pill"        id="evt-away-btn" onclick="selectEvtTeam('away')">Away</button>
+        </div>
+        <input type="text" class="field" id="evt-player" placeholder="Player name (optional)" style="flex:1;min-width:130px">
+        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 10px">
+          <span style="font-size:12px;color:var(--sub)">min</span>
+          <input type="number" id="evt-minute" value="0" min="0" max="999"
+                 style="background:none;border:none;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;width:44px;text-align:center;outline:none;-moz-appearance:textfield">
+        </div>
+        <button class="ctrl-btn go" onclick="logEvent()">+ Log</button>
+      </div>
+      <div class="timeline" id="evt-timeline">
+        <div style="padding:12px 18px;font-size:12px;color:var(--muted)">No events yet</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Log -->
   <div class="log-card">
     <h3>Activity log</h3>
@@ -406,6 +458,17 @@ function handleState(s) {
     b.classList.toggle('active', parseInt(b.textContent) === s.duration_min);
   });
   updateFormatSummary(s.total_periods, s.duration_min);
+
+  // Auto-sync event minute with clock (unless user is editing it)
+  const evtMinEl = document.getElementById('evt-minute');
+  if (document.activeElement !== evtMinEl) evtMinEl.value = s.minute;
+
+  // Update home/away team buttons in event panel
+  document.getElementById('evt-home-btn').textContent = s.home_name || 'Home';
+  document.getElementById('evt-away-btn').textContent = s.away_name || 'Away';
+
+  // Timeline
+  renderTimeline(s.events, s.home_name, s.away_name);
 
   // Colours
   applyColors(s.home_color || '#0a1447', s.away_color || '#420a0a');
@@ -601,6 +664,50 @@ function periodFullName(p, t) {
   if (t === 2) return p === 1 ? '1st Half' : '2nd Half';
   if (t === 4) return 'Quarter ' + p;
   return 'Period ' + p;
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+let evtType = 'goal';
+let evtTeam = 'home';
+
+function selectEvtType(t) {
+  evtType = t;
+  document.getElementById('evt-goal').className   = 'pill' + (t==='goal'   ? ' goal-active'   : '');
+  document.getElementById('evt-yellow').className = 'pill' + (t==='yellow' ? ' yellow-active' : '');
+  document.getElementById('evt-red').className    = 'pill' + (t==='red'    ? ' red-active'    : '');
+}
+function selectEvtTeam(t) {
+  evtTeam = t;
+  document.getElementById('evt-home-btn').className = 'pill' + (t==='home' ? ' active' : '');
+  document.getElementById('evt-away-btn').className = 'pill' + (t==='away' ? ' active' : '');
+}
+
+function logEvent() {
+  const player = document.getElementById('evt-player').value.trim();
+  const minute = parseInt(document.getElementById('evt-minute').value) || 0;
+  sendCmd('add_event', { event_type: evtType, team: evtTeam, player, minute });
+  document.getElementById('evt-player').value = '';
+}
+
+function renderTimeline(events, homeName, awayName) {
+  const el = document.getElementById('evt-timeline');
+  if (!events || events.length === 0) {
+    el.innerHTML = '<div style="padding:12px 18px;font-size:12px;color:var(--muted)">No events yet</div>';
+    return;
+  }
+  el.innerHTML = events.map(e => {
+    const badgeColor = e.type === 'goal' ? '#22c55e' : e.type === 'yellow' ? '#FFD700' : '#ef4444';
+    const label      = e.type === 'goal' ? '⚽' : e.type === 'yellow' ? 'Yellow' : 'Red';
+    const teamName   = e.team === 'home' ? homeName : awayName;
+    const player     = e.player ? `<strong>${e.player}</strong>` : '<span style="color:var(--muted)">—</span>';
+    return `<div class="timeline-row">
+      <span class="timeline-min">${e.minute}'</span>
+      <span class="evt-badge" style="background:${badgeColor}"></span>
+      <span class="timeline-team">${teamName.toUpperCase()}</span>
+      <span class="timeline-player">${player}</span>
+      <span style="font-size:12px;color:var(--sub)">${label}</span>
+    </div>`;
+  }).join('');
 }
 
 function setConn(ok) {

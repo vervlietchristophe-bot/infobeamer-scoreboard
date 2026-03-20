@@ -60,6 +60,20 @@ body {
 .dot.off { background:#383840; }
 .period-long { font-size:11px; color:#666677; }
 
+/* ── Event notification ── */
+#notif {
+  position:absolute; left:0; right:0;
+  bottom:17px; height:24px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  background:rgba(0,0,0,.82);
+  font-size:12px; font-weight:700; letter-spacing:.5px;
+  opacity:0; transition:opacity .4s;
+  pointer-events:none;
+}
+#notif .n-badge { width:13px; height:13px; border-radius:2px; flex-shrink:0; }
+#notif .n-player { color:#fff; }
+#notif .n-min { color:#888; font-weight:400; }
+
 /* ── No-signal overlay ── */
 #no-signal {
   position:fixed; bottom:4px; left:50%; transform:translateX(-50%);
@@ -91,6 +105,12 @@ body {
     <div class="dots" id="dots"></div>
     <div class="period-long" id="period-long">1st Half</div>
   </div>
+</div>
+
+<div id="notif">
+  <div class="n-badge" id="n-badge"></div>
+  <span class="n-player" id="n-player"></span>
+  <span class="n-min"    id="n-min"></span>
 </div>
 
 <div id="no-signal">NO SIGNAL</div>
@@ -133,6 +153,21 @@ setInterval(() => {
   document.getElementById('no-signal').style.display = stale ? 'block' : 'none';
 }, 1000);
 
+// ── Event notification ────────────────────────────────────────────────────────
+let lastEventSeq = 0;
+let notifTimer   = null;
+
+function showNotif(evt) {
+  const badgeColor = evt.type === 'goal' ? '#22c55e' : evt.type === 'yellow' ? '#FFD700' : '#ef4444';
+  document.getElementById('n-badge').style.background  = badgeColor;
+  document.getElementById('n-player').textContent = evt.player ? evt.player.toUpperCase() : (evt.type === 'goal' ? 'GOAL' : evt.type === 'yellow' ? 'YELLOW CARD' : 'RED CARD');
+  document.getElementById('n-min').textContent    = evt.minute + "'";
+  const el = document.getElementById('notif');
+  el.style.opacity = '1';
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const pad = n => String(n).padStart(2, '0');
 function isLight(hex) {
@@ -157,6 +192,11 @@ function periodLong(p, t) {
 function render(s) {
   document.getElementById('home-name').textContent  = s.home_name.toUpperCase().slice(0, 14);
   document.getElementById('away-name').textContent  = s.away_name.toUpperCase().slice(0, 14);
+  if (s.event_seq && s.event_seq > lastEventSeq && s.last_event) {
+    lastEventSeq = s.event_seq;
+    showNotif(s.last_event);
+  }
+
   if (s.home_color) {
     document.querySelector('.pv-home').style.background = s.home_color;
     const htc = isLight(s.home_color);
