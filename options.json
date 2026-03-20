@@ -1,8 +1,28 @@
 [
     {
-        "title": "Huidige Score",
-        "name": "score_text",
-        "type": "string",
-        "default": "0 - 0"
+        "title": "Wedstrijd Details",
+        "name": "settings",
+        "type": "section",
+        "ui_width": 12,
+        "items": [
+            {
+                "title": "Naam Thuisploeg",
+                "name": "home_team",
+                "type": "string",
+                "default": "Thuis"
+            },
+            {
+                "title": "Naam Uitploeg",
+                "name": "away_team",
+                "type": "string",
+                "default": "Uit"
+            },
+            {
+                "title": "Huidige Score",
+                "name": "score",
+                "type": "string",
+                "default": "0 - 0"
+            }
+        ]
     }
 ]
