@@ -235,9 +235,15 @@ header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-siz
     <h1>⚽ Scoreboard</h1>
     <span id="format-badge" style="font-size:11px;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:3px 10px;color:var(--sub)">2 × 20 min</span>
   </div>
-  <div class="status-pill">
-    <div class="dot" id="conn-dot"></div>
-    <span id="conn-label">Connecting…</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="display:flex;gap:4px">
+      <button class="pill active" id="btn-nl" onclick="setLang('nl')" style="padding:4px 10px;font-size:12px">NL</button>
+      <button class="pill"        id="btn-en" onclick="setLang('en')" style="padding:4px 10px;font-size:12px">EN</button>
+    </div>
+    <div class="status-pill">
+      <div class="dot" id="conn-dot"></div>
+      <span id="conn-label">Connecting…</span>
+    </div>
   </div>
 </header>
 
@@ -489,6 +495,10 @@ function handleState(s) {
     b.classList.toggle('active', parseInt(b.textContent) === s.duration_min);
   });
   updateFormatSummary(s.total_periods, s.duration_min);
+
+  // Language toggle
+  document.getElementById('btn-nl').classList.toggle('active', (s.lang || 'nl') === 'nl');
+  document.getElementById('btn-en').classList.toggle('active', s.lang === 'en');
 
   // Auto-sync event minute with clock (unless user is editing it)
   const evtMinEl = document.getElementById('evt-minute');
@@ -805,6 +815,13 @@ function renderSessions(list) {
 
 // Load sessions on startup
 loadSessions();
+
+// ── Language ──────────────────────────────────────────────────────────────────
+function setLang(l) {
+  sendUpdate({ lang: l });
+  document.getElementById('btn-nl').classList.toggle('active', l === 'nl');
+  document.getElementById('btn-en').classList.toggle('active', l === 'en');
+}
 
 function setConn(ok) {
   document.getElementById('conn-dot').className   = 'dot ' + (ok ? 'ok' : 'err');

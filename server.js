@@ -47,6 +47,7 @@ let state = {
   minute:        0,
   second:        0,
   match_live:    false,
+  lang:          'nl',
   events:        [],
   last_event:    null,
   event_seq:     0,
