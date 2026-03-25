@@ -475,7 +475,7 @@ function handleState(s) {
   document.getElementById('clock-big').textContent = clock;
   const rem = Math.max(0, s.duration_min * 60 - (s.minute * 60 + s.second));
   const rm = Math.floor(rem / 60), rs = rem % 60;
-  const remTxt = rem === 0 ? 'Full time!' : rm > 0 ? rm + ' min left' : rs + 's left';
+  const remTxt = rem === 0 ? ctLang.fullTime : rm > 0 ? ctLang.minLeft(rm) : ctLang.secLeft(rs);
   document.getElementById('remain-big').textContent = remTxt;
 
   // Start button
@@ -497,6 +497,7 @@ function handleState(s) {
   updateFormatSummary(s.total_periods, s.duration_min);
 
   // Language toggle
+  ctLang = CT[s.lang] || CT.nl;
   document.getElementById('btn-nl').classList.toggle('active', (s.lang || 'nl') === 'nl');
   document.getElementById('btn-en').classList.toggle('active', s.lang === 'en');
 
@@ -681,7 +682,7 @@ function updatePreview(s) {
   document.getElementById('pv-clock').textContent      = pad(s.minute) + ':' + pad(s.second);
   const rem = Math.max(0, s.duration_min * 60 - (s.minute * 60 + s.second));
   const rm  = Math.floor(rem/60), rs = rem % 60;
-  document.getElementById('pv-remain').textContent = rem === 0 ? 'Full time!' : rm > 0 ? rm + ' min left' : rs + 's left';
+  document.getElementById('pv-remain').textContent = rem === 0 ? ctLang.fullTime : rm > 0 ? ctLang.minLeft(rm) : ctLang.secLeft(rs);
   document.getElementById('pv-live').style.display   = s.match_live ? '' : 'none';
   document.getElementById('pv-paused').style.display = s.match_live ? 'none' : '';
   const pfull = periodFullName(s.period, s.total_periods);
@@ -704,9 +705,9 @@ function periodLabel(p, t) {
   return 'P' + p;
 }
 function periodFullName(p, t) {
-  if (t === 2) return p === 1 ? '1st Half' : '2nd Half';
-  if (t === 4) return 'Quarter ' + p;
-  return 'Period ' + p;
+  if (t === 2) return p === 1 ? ctLang.half1 : ctLang.half2;
+  if (t === 4) return ctLang.quarter(p);
+  return ctLang.period(p);
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
@@ -817,10 +818,34 @@ function renderSessions(list) {
 loadSessions();
 
 // ── Language ──────────────────────────────────────────────────────────────────
+const CT = {
+  en: {
+    paused:   'PAUSED',   live:    'LIVE',
+    time:     'Time!',    fullTime:'Full time!',
+    minLeft:  m => m + ' min left', secLeft: s => s + 's left',
+    half1:    '1st Half', half2:   '2nd Half',
+    quarter:  q => 'Quarter ' + q,
+    period:   p => 'Period ' + p,
+    brk:      'Break',
+  },
+  nl: {
+    paused:   'PAUZE',    live:    'LIVE',
+    time:     'Tijd!',    fullTime:'Eindtijd!',
+    minLeft:  m => m + ' min over', secLeft: s => s + 's over',
+    half1:    '1e Helft', half2:   '2e Helft',
+    quarter:  q => 'Kwart ' + q,
+    period:   p => 'Periode ' + p,
+    brk:      'Pauze',
+  },
+};
+let ctLang = CT.nl;
+
 function setLang(l) {
+  ctLang = CT[l] || CT.nl;
   sendUpdate({ lang: l });
   document.getElementById('btn-nl').classList.toggle('active', l === 'nl');
   document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  addLog('Language set to ' + l.toUpperCase(), 'ok');
 }
 
 function setConn(ok) {
