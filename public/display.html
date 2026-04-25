@@ -27,9 +27,9 @@ body {
 }
 
 /* ── Panels ── */
-.pv-home   { background: rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:flex-end;   padding:0 6px; }
+.pv-home   { background: rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; }
 .pv-centre { background: rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:3px 0 0; gap:1px; }
-.pv-away   { background: rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:flex-start;  padding:0 6px; }
+.pv-away   { background: rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; }
 .pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 8px; }
 
 /* ── Team names ── */
@@ -117,11 +117,11 @@ body {
 
 <script>
 // ── Scale board to fill screen ────────────────────────────────────────────────
-// The board is a fixed 512×128 canvas. The LED wall controller squashes
-// whatever HDMI signal it receives down to 512×128, so we stretch-fill by
-// default. On rotated displays (Windows set to portrait), we rotate the
-// board 90° so it still fills the screen correctly. A ?fit=contain query
-// param switches to aspect-preserving (letterbox) mode for test monitors.
+// The board is a fixed 512×128 canvas. In a regular browser window we
+// default to aspect-preserving (letterbox) so previews look correct. The
+// LED wall deployment opens the URL with ?fit=stretch — the LED controller
+// squashes the HDMI signal down to 512×128, which un-does the stretch.
+// On rotated displays (portrait) we rotate the board 90° to fill correctly.
 const board    = document.getElementById('board');
 const fitMode  = new URLSearchParams(location.search).get('fit') || 'contain';
 
