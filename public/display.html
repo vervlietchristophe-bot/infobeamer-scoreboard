@@ -135,8 +135,8 @@ function connect() {
 connect();
 
 setInterval(() => {
-  const stale = lastUpdate > 0 && (Date.now() - lastUpdate) > 15000;
-  document.getElementById('no-signal').style.display = stale ? 'block' : 'none';
+  const ok = ws && ws.readyState === 1;
+  document.getElementById('no-signal').style.display = ok ? 'none' : 'block';
 }, 1000);
 
 // ── Event notification ────────────────────────────────────────────────────────
