@@ -15,65 +15,69 @@ html, body {
   font-family:'Barlow Condensed', sans-serif;
 }
 
-/* Fluid board — fills any screen, proportions stay constant via fr / vmin */
+/* Board fills the page by default; JS may override to fixed pixels for LED. */
+/* container-type: size  →  inside, *cqmin/cqi/cqb units scale to the board, */
+/* not the viewport, so layout works at both fluid and fixed sizes.          */
 #board {
   width:100vw; height:100vh;
-  position:relative;
+  position:absolute;
+  top:0; left:0;
   display:grid;
   grid-template-columns: 41fr 18fr 41fr;
   grid-template-rows: 87fr 13fr;
+  container-type: size;
 }
 
 /* ── Panels ── */
-.pv-home   { background:rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5vmin; overflow:hidden; }
-.pv-centre { background:rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5vmin 0 0; gap:.4vmin; overflow:hidden; }
-.pv-away   { background:rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5vmin; overflow:hidden; }
-.pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 1.8vmin; }
+.pv-home   { background:rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5cqmin; overflow:hidden; }
+.pv-centre { background:rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5cqmin 0 0; gap:.4cqmin; overflow:hidden; }
+.pv-away   { background:rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5cqmin; overflow:hidden; }
+.pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 1.8cqmin; }
 
 /* ── Team names ── */
 .team-name {
-  font-size:3vmin; font-weight:600; color:#666677;
-  text-transform:uppercase; letter-spacing:.2vmin;
+  font-size:6cqmin; font-weight:600; color:#666677;
+  text-transform:uppercase; letter-spacing:.2cqmin;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   max-width:95%;
-  margin-bottom:.4vmin;
+  line-height:1; margin-bottom:.6cqmin;
 }
 
 /* ── Scores ── */
 .score {
-  font-size:24vmin; font-weight:900; color:#fff; line-height:1;
+  font-size:48cqmin; font-weight:900; color:#fff; line-height:1;
 }
 
 /* ── Centre info ── */
-.p-label  { font-size:3.6vmin; font-weight:700; color:#f5c518; line-height:1.1; }
-.status   { font-size:2.4vmin; font-weight:600; line-height:1.2; }
+.p-label  { font-size:7cqmin; font-weight:700; color:#f5c518; line-height:1.1; }
+.status   { font-size:5cqmin; font-weight:600; line-height:1.2; }
 .status.live   { color:#26e159; }
 .status.paused { color:#666677; }
-.clock    { font-size:5vmin; font-weight:700; color:#fff; letter-spacing:.3vmin; line-height:1.2; }
-.remain   { font-size:2vmin; color:#666677; line-height:1.2; }
+.clock    { font-size:10cqmin; font-weight:700; color:#fff; letter-spacing:.3cqmin; line-height:1.2; }
+.remain   { font-size:4cqmin; color:#666677; line-height:1.2; }
 
 /* ── Status bar ── */
-.dots { display:flex; gap:.8vmin; align-items:center; }
-.dot  { width:1.6vmin; height:1.6vmin; border-radius:.25vmin; }
+.dots { display:flex; gap:.8cqmin; align-items:center; }
+.dot  { width:1.6cqmin; height:1.6cqmin; border-radius:.25cqmin; }
 .dot.on  { background:#f5c518; }
 .dot.off { background:#383840; }
-.period-long { font-size:2.4vmin; color:#666677; }
+.period-long { font-size:5cqmin; color:#666677; }
 
 /* ── Event notification ── */
 #notif {
   position:absolute; left:0; right:0;
-  bottom:13%; height:6vmin;
-  display:flex; align-items:center; justify-content:center; gap:1.5vmin;
+  bottom:13%; height:6cqmin;
+  display:flex; align-items:center; justify-content:center; gap:1.5cqmin;
   background:rgba(0,0,0,.82);
-  font-size:2.6vmin; font-weight:700; letter-spacing:.1vmin;
+  font-size:5cqmin; font-weight:700; letter-spacing:.1cqmin;
   opacity:0; transition:opacity .4s;
   pointer-events:none;
 }
-#notif .n-badge { width:2.8vmin; height:2.8vmin; border-radius:.4vmin; flex-shrink:0; }
+#notif .n-badge { width:2.8cqmin; height:2.8cqmin; border-radius:.4cqmin; flex-shrink:0; }
 #notif .n-player { color:#fff; }
 #notif .n-min { color:#888; font-weight:400; }
 
-/* ── No-signal overlay ── */
+/* ── No-signal overlay (page-level, in case board is small) ── */
 #no-signal {
   position:fixed; bottom:1vmin; left:50%; transform:translateX(-50%);
   background:rgba(200,40,40,.85); color:#fff;
@@ -115,10 +119,43 @@ html, body {
 <div id="no-signal">NO SIGNAL</div>
 
 <script>
+// ── LED-mode positioning ─────────────────────────────────────────────────────
+// Default: board fills the whole page (fluid).
+// LED mode: pass ?w=350&h=75&pos=tr to render at exact pixels in a corner.
+//   pos values: tl (top-left, default), tr (top-right), bl, br, c (center)
+// This is for LED walls whose controller reads a fixed-size pixel window
+// from the HDMI signal at a specific corner — we render the board exactly
+// inside that window so it shows up undistorted on the LED.
+(function applyLedMode() {
+  const p = new URLSearchParams(location.search);
+  const w = parseInt(p.get('w'));
+  const h = parseInt(p.get('h'));
+  const pos = (p.get('pos') || 'tl').toLowerCase();
+  if (!w || !h) return; // fluid default
+
+  const b = document.getElementById('board');
+  b.style.width  = w + 'px';
+  b.style.height = h + 'px';
+  // Clear any default placement first
+  b.style.top = b.style.right = b.style.bottom = b.style.left = 'auto';
+  b.style.transform = '';
+  switch (pos) {
+    case 'tr': b.style.top    = '0';   b.style.right  = '0';   break;
+    case 'bl': b.style.bottom = '0';   b.style.left   = '0';   break;
+    case 'br': b.style.bottom = '0';   b.style.right  = '0';   break;
+    case 'c':
+      b.style.top = '50%'; b.style.left = '50%';
+      b.style.transform = 'translate(-50%, -50%)';
+      break;
+    default: // tl
+      b.style.top = '0'; b.style.left = '0';
+  }
+})();
+
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wsProto  = location.protocol === 'https:' ? 'wss' : 'ws';
 const wsUrl    = `${wsProto}://${location.host}`;
-let   ws, lastUpdate = 0, reconnectTimer;
+let   ws, reconnectTimer;
 
 function connect() {
   ws = new WebSocket(wsUrl);
@@ -126,7 +163,7 @@ function connect() {
   ws.onmessage = ({ data }) => {
     try {
       const msg = JSON.parse(data);
-      if (msg.type === 'state') { lastUpdate = Date.now(); render(msg.data); }
+      if (msg.type === 'state') render(msg.data);
     } catch {}
   };
   ws.onclose = () => { reconnectTimer = setTimeout(connect, 2000); };
