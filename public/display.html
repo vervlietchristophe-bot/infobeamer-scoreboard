@@ -15,9 +15,6 @@ html, body {
   font-family:'Barlow Condensed', sans-serif;
 }
 
-/* Board fills the page by default; JS may override to fixed pixels for LED. */
-/* container-type: size  →  inside, *cqmin/cqi/cqb units scale to the board, */
-/* not the viewport, so layout works at both fluid and fixed sizes.          */
 #board {
   width:100vw; height:100vh;
   position:absolute;
@@ -28,13 +25,11 @@ html, body {
   container-type: size;
 }
 
-/* ── Panels ── */
 .pv-home   { background:rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5cqmin; overflow:hidden; }
 .pv-centre { background:rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5cqmin 0 0; gap:.4cqmin; overflow:hidden; }
 .pv-away   { background:rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5cqmin; overflow:hidden; }
 .pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 1.8cqmin; }
 
-/* ── Team names ── */
 .team-name {
   font-size:6cqmin; font-weight:600; color:#666677;
   text-transform:uppercase; letter-spacing:.2cqmin;
@@ -43,12 +38,8 @@ html, body {
   line-height:1; margin-bottom:.6cqmin;
 }
 
-/* ── Scores ── */
-.score {
-  font-size:48cqmin; font-weight:900; color:#fff; line-height:1;
-}
+.score { font-size:48cqmin; font-weight:900; color:#fff; line-height:1; }
 
-/* ── Centre info ── */
 .p-label  { font-size:7cqmin; font-weight:700; color:#f5c518; line-height:1.1; }
 .status   { font-size:5cqmin; font-weight:600; line-height:1.2; }
 .status.live   { color:#26e159; }
@@ -56,14 +47,12 @@ html, body {
 .clock    { font-size:10cqmin; font-weight:700; color:#fff; letter-spacing:.3cqmin; line-height:1.2; }
 .remain   { font-size:4cqmin; color:#666677; line-height:1.2; }
 
-/* ── Status bar ── */
 .dots { display:flex; gap:.8cqmin; align-items:center; }
 .dot  { width:1.6cqmin; height:1.6cqmin; border-radius:.25cqmin; }
 .dot.on  { background:#f5c518; }
 .dot.off { background:#383840; }
 .period-long { font-size:5cqmin; color:#666677; }
 
-/* ── Event notification ── */
 #notif {
   position:absolute; left:0; right:0;
   bottom:13%; height:6cqmin;
@@ -77,7 +66,6 @@ html, body {
 #notif .n-player { color:#fff; }
 #notif .n-min { color:#888; font-weight:400; }
 
-/* ── No-signal overlay (page-level, in case board is small) ── */
 #no-signal {
   position:fixed; bottom:1vmin; left:50%; transform:translateX(-50%);
   background:rgba(200,40,40,.85); color:#fff;
@@ -123,31 +111,42 @@ html, body {
 // Default: board fills the whole page (fluid).
 // LED mode: pass ?w=350&h=75&pos=tr to render at exact pixels in a corner.
 //   pos values: tl (top-left, default), tr (top-right), bl, br, c (center)
-// This is for LED walls whose controller reads a fixed-size pixel window
-// from the HDMI signal at a specific corner — we render the board exactly
-// inside that window so it shows up undistorted on the LED.
+// Optional ?rot=90|180|270 rotates the board (useful when the LED is
+// physically mounted rotated).
 (function applyLedMode() {
   const p = new URLSearchParams(location.search);
   const w = parseInt(p.get('w'));
   const h = parseInt(p.get('h'));
   const pos = (p.get('pos') || 'tl').toLowerCase();
-  if (!w || !h) return; // fluid default
+  const rot = (parseInt(p.get('rot')) || 0) % 360;
+  if (!w || !h) return;
 
   const b = document.getElementById('board');
   b.style.width  = w + 'px';
   b.style.height = h + 'px';
-  // Clear any default placement first
   b.style.top = b.style.right = b.style.bottom = b.style.left = 'auto';
-  b.style.transform = '';
+
+  const rotated = rot === 90 || rot === 270;
+  const visW = rotated ? h : w;
+  const visH = rotated ? w : h;
+  let tx = 0, ty = 0;
+  switch (rot) {
+    case 90:  tx = visW; ty = 0;     break;
+    case 180: tx = visW; ty = visH;  break;
+    case 270: tx = 0;    ty = visH;  break;
+  }
+  b.style.transformOrigin = 'top left';
+  b.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+
   switch (pos) {
-    case 'tr': b.style.top    = '0';   b.style.right  = '0';   break;
-    case 'bl': b.style.bottom = '0';   b.style.left   = '0';   break;
-    case 'br': b.style.bottom = '0';   b.style.right  = '0';   break;
+    case 'tr': b.style.top = '0';                         b.style.left = `calc(100vw - ${visW}px)`; break;
+    case 'bl': b.style.top = `calc(100vh - ${visH}px)`;   b.style.left = '0';                       break;
+    case 'br': b.style.top = `calc(100vh - ${visH}px)`;   b.style.left = `calc(100vw - ${visW}px)`; break;
     case 'c':
-      b.style.top = '50%'; b.style.left = '50%';
-      b.style.transform = 'translate(-50%, -50%)';
+      b.style.top  = `calc((100vh - ${visH}px) / 2)`;
+      b.style.left = `calc((100vw - ${visW}px) / 2)`;
       break;
-    default: // tl
+    default:
       b.style.top = '0'; b.style.left = '0';
   }
 })();
@@ -176,7 +175,6 @@ setInterval(() => {
   document.getElementById('no-signal').style.display = ok ? 'none' : 'block';
 }, 1000);
 
-// ── Event notification ────────────────────────────────────────────────────────
 let lastEventSeq = 0;
 let notifTimer   = null;
 
@@ -191,32 +189,11 @@ function showNotif(evt) {
   notifTimer = setTimeout(() => { el.style.opacity = '0'; }, 30000);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const pad = n => String(n).padStart(2, '0');
 
 const T = {
-  en: {
-    paused:    'PAUSED',
-    time:      'Time!',
-    minLeft:   m => m + ' min left',
-    secLeft:   s => s + 's left',
-    half1:     '1st Half', half2: '2nd Half',
-    quarter:   q => 'Quarter ' + q,
-    period:    p => 'Period ' + p,
-    brk:       'Break',
-    noSignal:  'NO SIGNAL',
-  },
-  nl: {
-    paused:    'PAUZE',
-    time:      'Tijd!',
-    minLeft:   m => m + ' min over',
-    secLeft:   s => s + 's over',
-    half1:     '1e Helft', half2: '2e Helft',
-    quarter:   q => 'Kwart ' + q,
-    period:    p => 'Periode ' + p,
-    brk:       'Pauze',
-    noSignal:  'GEEN SIGNAAL',
-  },
+  en: { paused:'PAUSED', time:'Time!', minLeft:m=>m+' min left', secLeft:s=>s+'s left', half1:'1st Half', half2:'2nd Half', quarter:q=>'Quarter '+q, period:p=>'Period '+p, brk:'Break', noSignal:'NO SIGNAL' },
+  nl: { paused:'PAUZE',  time:'Tijd!', minLeft:m=>m+' min over', secLeft:s=>s+'s over', half1:'1e Helft', half2:'2e Helft', quarter:q=>'Kwart '+q,   period:p=>'Periode '+p, brk:'Pauze', noSignal:'GEEN SIGNAAL' },
 };
 let lang = T.nl;
 
@@ -226,7 +203,6 @@ function isLight(hex) {
   const b = parseInt(hex.slice(5,7),16);
   return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.45;
 }
-
 function periodShort(p, t) {
   if (t === 2) return p === 1 ? 'H1' : 'H2';
   if (t === 4) return 'Q' + p;
@@ -238,7 +214,6 @@ function periodLong(p, t) {
   return lang.period(p);
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function render(s) {
   document.getElementById('home-name').textContent  = s.home_name.toUpperCase().slice(0, 14);
   document.getElementById('away-name').textContent  = s.away_name.toUpperCase().slice(0, 14);
@@ -275,8 +250,7 @@ function render(s) {
 
   const rem = Math.max(0, s.duration_min * 60 - (s.minute * 60 + s.second));
   const rm  = Math.floor(rem / 60), rs = rem % 60;
-  document.getElementById('remain').textContent =
-    rem === 0 ? lang.time : rm > 0 ? lang.minLeft(rm) : lang.secLeft(rs);
+  document.getElementById('remain').textContent = rem === 0 ? lang.time : rm > 0 ? lang.minLeft(rm) : lang.secLeft(rs);
 
   const dots = document.getElementById('dots');
   dots.innerHTML = '';
