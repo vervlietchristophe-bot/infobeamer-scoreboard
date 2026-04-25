@@ -30,7 +30,7 @@ start "scoreboard-server" cmd /k node server.js
 rem Give the server a moment to start listening before opening browser windows.
 timeout /t 2 /nobreak >nul
 
-start "" "http://localhost:3000/display.html?w=350&h=75&pos=tl&rot=90"
+start "" "http://localhost:3000/display.html"
 start "" "http://localhost:3000/controller.html"
 
 echo.
