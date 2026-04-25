@@ -8,78 +8,77 @@
 
 * { margin:0; padding:0; box-sizing:border-box; }
 
-body {
-  background: #000;
-  width: 100vw; height: 100vh;
-  overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
+html, body {
+  background:#000;
+  width:100vw; height:100vh;
+  overflow:hidden;
+  font-family:'Barlow Condensed', sans-serif;
 }
 
-/* Fixed 512×128 canvas, scaled by JS to fill screen */
+/* Fluid board — fills any screen, proportions stay constant via fr / vmin */
 #board {
-  position: absolute;
-  width: 512px; height: 128px;
-  display: grid;
-  grid-template-columns: 206px 100px 206px;
-  grid-template-rows: 111px 17px;
-  transform-origin: top left;
-  font-family: 'Barlow Condensed', sans-serif;
+  width:100vw; height:100vh;
+  position:relative;
+  display:grid;
+  grid-template-columns: 41fr 18fr 41fr;
+  grid-template-rows: 87fr 13fr;
 }
 
 /* ── Panels ── */
-.pv-home   { background: rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; }
-.pv-centre { background: rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:3px 0 0; gap:1px; }
-.pv-away   { background: rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 6px; }
-.pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 8px; }
+.pv-home   { background:rgb(10,20,71);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5vmin; overflow:hidden; }
+.pv-centre { background:rgb(18,18,23);  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5vmin 0 0; gap:.4vmin; overflow:hidden; }
+.pv-away   { background:rgb(66,10,10);  display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 1.5vmin; overflow:hidden; }
+.pv-bar    { grid-column:1/4; background:rgb(10,10,15); display:flex; align-items:center; justify-content:space-between; padding:0 1.8vmin; }
 
 /* ── Team names ── */
 .team-name {
-  font-size:13px; font-weight:600; color:#666677;
-  text-transform:uppercase; letter-spacing:.5px;
-  white-space:nowrap; overflow:hidden; max-width:198px;
-  margin-bottom:1px;
+  font-size:3vmin; font-weight:600; color:#666677;
+  text-transform:uppercase; letter-spacing:.2vmin;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:95%;
+  margin-bottom:.4vmin;
 }
 
 /* ── Scores ── */
 .score {
-  font-size:72px; font-weight:900; color:#fff; line-height:1;
+  font-size:24vmin; font-weight:900; color:#fff; line-height:1;
 }
 
 /* ── Centre info ── */
-.p-label  { font-size:13px; font-weight:700; color:#f5c518; line-height:1.1; }
-.status   { font-size:10px; font-weight:600; line-height:1.2; }
+.p-label  { font-size:3.6vmin; font-weight:700; color:#f5c518; line-height:1.1; }
+.status   { font-size:2.4vmin; font-weight:600; line-height:1.2; }
 .status.live   { color:#26e159; }
 .status.paused { color:#666677; }
-.clock    { font-size:16px; font-weight:700; color:#fff; letter-spacing:1px; line-height:1.2; }
-.remain   { font-size:9px; color:#666677; line-height:1.2; }
+.clock    { font-size:5vmin; font-weight:700; color:#fff; letter-spacing:.3vmin; line-height:1.2; }
+.remain   { font-size:2vmin; color:#666677; line-height:1.2; }
 
 /* ── Status bar ── */
-.dots { display:flex; gap:4px; align-items:center; }
-.dot  { width:8px; height:8px; border-radius:1px; }
+.dots { display:flex; gap:.8vmin; align-items:center; }
+.dot  { width:1.6vmin; height:1.6vmin; border-radius:.25vmin; }
 .dot.on  { background:#f5c518; }
 .dot.off { background:#383840; }
-.period-long { font-size:11px; color:#666677; }
+.period-long { font-size:2.4vmin; color:#666677; }
 
 /* ── Event notification ── */
 #notif {
   position:absolute; left:0; right:0;
-  bottom:17px; height:24px;
-  display:flex; align-items:center; justify-content:center; gap:8px;
+  bottom:13%; height:6vmin;
+  display:flex; align-items:center; justify-content:center; gap:1.5vmin;
   background:rgba(0,0,0,.82);
-  font-size:12px; font-weight:700; letter-spacing:.5px;
+  font-size:2.6vmin; font-weight:700; letter-spacing:.1vmin;
   opacity:0; transition:opacity .4s;
   pointer-events:none;
 }
-#notif .n-badge { width:13px; height:13px; border-radius:2px; flex-shrink:0; }
+#notif .n-badge { width:2.8vmin; height:2.8vmin; border-radius:.4vmin; flex-shrink:0; }
 #notif .n-player { color:#fff; }
 #notif .n-min { color:#888; font-weight:400; }
 
 /* ── No-signal overlay ── */
 #no-signal {
-  position:fixed; bottom:4px; left:50%; transform:translateX(-50%);
+  position:fixed; bottom:1vmin; left:50%; transform:translateX(-50%);
   background:rgba(200,40,40,.85); color:#fff;
-  padding:2px 10px; border-radius:3px;
-  font-family:sans-serif; font-size:10px; letter-spacing:.5px;
+  padding:.5vmin 2vmin; border-radius:.5vmin;
+  font-family:sans-serif; font-size:2vmin; letter-spacing:.1vmin;
   display:none;
 }
 </style>
@@ -116,55 +115,6 @@ body {
 <div id="no-signal">NO SIGNAL</div>
 
 <script>
-// ── Scale board to fill screen ────────────────────────────────────────────────
-// The board is a fixed 512×128 canvas. In a regular browser window we
-// default to aspect-preserving (letterbox) so previews look correct. The
-// LED wall deployment opens the URL with ?fit=stretch — the LED controller
-// squashes the HDMI signal down to 512×128, which un-does the stretch.
-// On rotated displays (portrait) we rotate the board 90° to fill correctly.
-const board    = document.getElementById('board');
-const fitMode  = new URLSearchParams(location.search).get('fit') || 'contain';
-
-function resize() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const portrait = vh > vw;
-  // In portrait we rotate the board 90° so its long side runs along the
-  // screen's long side. That means 512 maps to vh, 128 maps to vw.
-  const longSide  = portrait ? vh : vw;
-  const shortSide = portrait ? vw : vh;
-
-  let sx, sy;
-  if (fitMode === 'contain') {
-    const s = Math.min(longSide / 512, shortSide / 128);
-    sx = sy = s;
-  } else {
-    sx = longSide  / 512;
-    sy = shortSide / 128;
-  }
-
-  if (portrait) {
-    // Rotate 90° clockwise around origin, then translate into view.
-    // After rotate+scale, the board occupies (sy*128) wide × (sx*512) tall.
-    const w = sy * 128, h = sx * 512;
-    const tx = (vw + w) / 2;
-    const ty = (vh - h) / 2;
-    board.style.transform = `translate(${tx}px, ${ty}px) rotate(90deg) scale(${sx}, ${sy})`;
-  } else {
-    const w = sx * 512, h = sy * 128;
-    const tx = (vw - w) / 2;
-    const ty = (vh - h) / 2;
-    board.style.transform = `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
-  }
-  board.style.left = '0px';
-  board.style.top  = '0px';
-}
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', resize);
-if (screen.orientation && screen.orientation.addEventListener) {
-  screen.orientation.addEventListener('change', resize);
-}
-resize();
-
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wsProto  = location.protocol === 'https:' ? 'wss' : 'ws';
 const wsUrl    = `${wsProto}://${location.host}`;
