@@ -8,6 +8,7 @@ const fs         = require('fs');
 // ── Session storage (JSON file, 30-day retention) ─────────────────────────────
 const DATA_DIR      = path.join(__dirname, 'data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const ADS_FILE      = path.join(DATA_DIR, 'ads.json');
 const RETENTION_MS  = 30 * 24 * 60 * 60 * 1000;
 
 function loadSessions() {
@@ -21,6 +22,17 @@ function saveSessions(list) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(list, null, 2));
 }
+function loadAds() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(ADS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(ADS_FILE, 'utf8'));
+  } catch { return []; }
+}
+function saveAds(list) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(ADS_FILE, JSON.stringify(list, null, 2));
+}
 function pruned(list) {
   const cutoff = Date.now() - RETENTION_MS;
   return list.filter(s => new Date(s.date).getTime() > cutoff);
@@ -30,7 +42,7 @@ const app    = express();
 const server = http.createServer(app);
 const wss    = new WebSocketServer({ server });
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (_req, res) => res.redirect('/controller.html'));
 
@@ -55,7 +67,13 @@ let state = {
   events:           [],
   last_event:       null,
   event_seq:        0,
+  ads:              [],
+  ad_auto:          false,
+  ad_interval_sec:  60,
+  current_ad:       null,
 };
+
+state.ads = loadAds();
 
 // ── Server-side clock ─────────────────────────────────────────────────────────
 let clockInterval = null;
@@ -87,6 +105,41 @@ function broadcast(data) {
     if (client.readyState === 1) client.send(msg);
   }
 }
+
+// ── Ad scheduling ────────────────────────────────────────────────────────────
+let adRotationIdx = 0;
+let adClearTimer  = null;
+
+function showAd(ad) {
+  if (!ad) return;
+  const dur = Math.max(3, Math.min(60, ad.duration_sec || 15));
+  state.current_ad = {
+    id:           ad.id,
+    text:         ad.text || '',
+    image:        ad.image || null,
+    duration_sec: dur,
+    started_at:   Date.now(),
+  };
+  broadcast(state);
+  clearTimeout(adClearTimer);
+  adClearTimer = setTimeout(() => {
+    state.current_ad = null;
+    broadcast(state);
+  }, dur * 1000);
+}
+
+setInterval(() => {
+  if (!state.ad_auto || state.current_ad || state.ads.length === 0) return;
+  const interval = Math.max(10, state.ad_interval_sec || 60);
+  // Rotate through ads at the configured interval. Use a separate counter so
+  // adding/removing ads doesn't change the rotation cadence.
+  if (!showAd._lastAt) showAd._lastAt = 0;
+  if (Date.now() - showAd._lastAt < interval * 1000) return;
+  showAd._lastAt = Date.now();
+  const ad = state.ads[adRotationIdx % state.ads.length];
+  adRotationIdx = (adRotationIdx + 1) % Math.max(1, state.ads.length);
+  showAd(ad);
+}, 1000);
 
 // ── WebSocket handler ─────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
@@ -149,6 +202,23 @@ wss.on('connection', (ws) => {
             state.events     = [];
             state.last_event = null;
             break;
+          case 'show_ad': {
+            const ad = state.ads.find(a => a.id === msg.id);
+            if (ad) showAd(ad);
+            return;
+          }
+          case 'stop_ad':
+            clearTimeout(adClearTimer);
+            state.current_ad = null;
+            break;
+          case 'ad_settings':
+            if (typeof msg.auto === 'boolean') state.ad_auto = msg.auto;
+            if (typeof msg.interval_sec === 'number') {
+              state.ad_interval_sec = Math.max(10, Math.min(3600, msg.interval_sec));
+            }
+            // Reset cadence so a toggle takes effect immediately on next tick.
+            showAd._lastAt = 0;
+            break;
         }
         broadcast(state);
       }
@@ -196,6 +266,48 @@ app.post('/api/sessions', (_req, res) => {
 app.delete('/api/sessions/:id', (req, res) => {
   let list = loadSessions().filter(s => s.id !== req.params.id);
   saveSessions(list);
+  res.json({ ok: true });
+});
+
+// ── Ads REST API ──────────────────────────────────────────────────────────────
+function sanitizeAd(input, existingId) {
+  return {
+    id:           existingId || Date.now().toString(),
+    text:         (input.text || '').slice(0, 200),
+    image:        typeof input.image === 'string' && input.image.startsWith('data:image/')
+                  ? input.image.slice(0, 4 * 1024 * 1024)
+                  : null,
+    duration_sec: Math.max(3, Math.min(60, parseInt(input.duration_sec) || 15)),
+  };
+}
+
+app.post('/api/ads', (req, res) => {
+  const ad = sanitizeAd(req.body || {});
+  state.ads = [...state.ads, ad];
+  saveAds(state.ads);
+  broadcast(state);
+  res.json({ ok: true, ad });
+});
+
+app.put('/api/ads/:id', (req, res) => {
+  const idx = state.ads.findIndex(a => a.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ ok: false });
+  state.ads = state.ads.map((a, i) =>
+    i === idx ? sanitizeAd({ ...a, ...(req.body || {}) }, a.id) : a
+  );
+  saveAds(state.ads);
+  broadcast(state);
+  res.json({ ok: true, ad: state.ads[idx] });
+});
+
+app.delete('/api/ads/:id', (req, res) => {
+  state.ads = state.ads.filter(a => a.id !== req.params.id);
+  saveAds(state.ads);
+  if (state.current_ad && state.current_ad.id === req.params.id) {
+    clearTimeout(adClearTimer);
+    state.current_ad = null;
+  }
+  broadcast(state);
   res.json({ ok: true });
 });
 

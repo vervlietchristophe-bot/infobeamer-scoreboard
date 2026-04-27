@@ -74,6 +74,33 @@ html, body {
   display:none;
 }
 
+#ad-overlay {
+  position:absolute; inset:0;
+  background:#000;
+  display:none;
+  align-items:center; justify-content:center;
+  gap:3cqmin;
+  overflow:hidden;
+  z-index:50;
+}
+#ad-overlay.show { display:flex; }
+#ad-overlay img {
+  max-height:88%;
+  max-width:60%;
+  object-fit:contain;
+  image-rendering:pixelated;
+}
+#ad-overlay .ad-text {
+  color:#fff; font-weight:900;
+  font-size:24cqmin; line-height:1.05;
+  text-transform:uppercase; letter-spacing:.4cqmin;
+  text-align:center;
+  max-width:96%;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#ad-overlay.text-only .ad-text { font-size:32cqmin; }
+#ad-overlay.image-only .ad-text { display:none; }
+
 /* ── Calibration overlay (?cal=1) ── */
 #cal {
   position:fixed; inset:0;
@@ -121,6 +148,11 @@ html, body {
     <div class="n-badge" id="n-badge"></div>
     <span class="n-player" id="n-player"></span>
     <span class="n-min"    id="n-min"></span>
+  </div>
+
+  <div id="ad-overlay">
+    <img id="ad-img" alt="">
+    <div class="ad-text" id="ad-text"></div>
   </div>
 </div>
 
@@ -245,6 +277,28 @@ setInterval(() => {
 let lastEventSeq = 0;
 let notifTimer   = null;
 
+function renderAd(ad) {
+  const overlay = document.getElementById('ad-overlay');
+  const img     = document.getElementById('ad-img');
+  const txt     = document.getElementById('ad-text');
+  if (!ad) {
+    overlay.classList.remove('show', 'text-only', 'image-only');
+    img.removeAttribute('src');
+    return;
+  }
+  if (ad.image) {
+    img.src = ad.image;
+    img.style.display = '';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+  }
+  txt.textContent = (ad.text || '').toUpperCase();
+  overlay.classList.toggle('text-only',  !ad.image);
+  overlay.classList.toggle('image-only', !!ad.image && !ad.text);
+  overlay.classList.add('show');
+}
+
 function showNotif(evt) {
   const badgeColor = evt.type === 'goal' ? '#22c55e' : evt.type === 'yellow' ? '#FFD700' : '#ef4444';
   document.getElementById('n-badge').style.background  = badgeColor;
@@ -286,6 +340,8 @@ function render(s) {
   document.getElementById('away-name').textContent  = s.away_name.toUpperCase().slice(0, 14);
   lang = T[s.lang] || T.nl;
   document.getElementById('no-signal').textContent = lang.noSignal;
+
+  renderAd(s.current_ad);
 
   if (s.event_seq && s.event_seq > lastEventSeq && s.last_event) {
     lastEventSeq = s.event_seq;

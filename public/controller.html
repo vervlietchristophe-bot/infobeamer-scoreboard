@@ -227,6 +227,27 @@ header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-siz
 .timeline-del  { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 4px; }
 .timeline-del:hover { color:var(--red); }
 
+.ads-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+.ads-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.ads-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub); cursor:pointer; }
+.ads-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.ad-item { display:flex; gap:10px; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px; }
+.ad-item.playing { border-color:var(--green); background:rgba(34,197,94,.08); }
+.ad-thumb { width:80px; height:30px; flex-shrink:0; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:4px; }
+.ad-thumb img { max-width:100%; max-height:100%; image-rendering:pixelated; }
+.ad-thumb .placeholder { color:var(--muted); font-size:10px; }
+.ad-meta { flex:1; min-width:0; }
+.ad-text-line { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ad-dur { font-size:11px; color:var(--muted); }
+.ad-actions { display:flex; gap:6px; flex-shrink:0; }
+.ad-btn { background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-weight:600; }
+.ad-btn.go { background:var(--green); color:#000; border-color:var(--green); }
+.ad-btn.del { color:var(--red); border-color:rgba(239,68,68,.4); }
+.ad-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border); margin-top:10px; }
+.ad-form input[type=text] { flex:1; min-width:160px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 10px; font-family:'Barlow Condensed',sans-serif; font-size:13px; }
+.ad-form input[type=number] { width:60px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 8px; font-size:13px; }
+.ad-form input[type=file] { font-size:11px; color:var(--muted); }
+
 /* ── Sessions ── */
 .sessions-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
 .session-row {
@@ -453,6 +474,33 @@ header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-siz
     </div>
   </div>
 
+  <!-- Commercials -->
+  <div>
+    <div class="section-hdr">Commercials <span id="ad-status" style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0"></span></div>
+    <div class="ads-card" style="margin-top:8px">
+      <div class="ads-row">
+        <label class="ads-toggle">
+          <input type="checkbox" id="ad-auto" onchange="setAdSettings()">
+          Auto-rotate every
+        </label>
+        <input type="number" id="ad-interval" min="10" max="3600" value="60"
+               onchange="setAdSettings()" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px">
+        <span style="font-size:12px;color:var(--sub)">seconds</span>
+        <button class="ad-btn del" id="btn-stop-ad" onclick="stopAd()" style="display:none;margin-left:auto">⏹ Stop current</button>
+      </div>
+      <div class="ads-list" id="ads-list">
+        <div style="padding:8px;font-size:12px;color:var(--muted)">No commercials yet</div>
+      </div>
+      <div class="ad-form">
+        <input type="text" id="ad-new-text" placeholder="Ad text (optional if image)" maxlength="200">
+        <input type="number" id="ad-new-duration" min="3" max="60" value="15" title="Duration (seconds)">
+        <span style="font-size:11px;color:var(--muted)">sec</span>
+        <input type="file" id="ad-new-image" accept="image/*">
+        <button class="ad-btn go" onclick="addAd()">+ Add</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Log -->
   <div class="log-card">
     <h3>Activity log</h3>
@@ -568,6 +616,21 @@ function handleState(s) {
   const fs = document.getElementById('font-select');
   if (fs && fs.value !== (s.text_font || '')) fs.value = s.text_font || '';
 
+  // Commercials
+  const adAuto = document.getElementById('ad-auto');
+  if (adAuto && adAuto.checked !== !!s.ad_auto) adAuto.checked = !!s.ad_auto;
+  const adIntv = document.getElementById('ad-interval');
+  if (adIntv && document.activeElement !== adIntv) adIntv.value = s.ad_interval_sec || 60;
+  const stopBtn = document.getElementById('btn-stop-ad');
+  if (stopBtn) stopBtn.style.display = s.current_ad ? '' : 'none';
+  const adStatus = document.getElementById('ad-status');
+  if (adStatus) {
+    adStatus.textContent = s.current_ad
+      ? `(showing now · ${s.current_ad.duration_sec}s)`
+      : (s.ad_auto ? '(auto-rotation on)' : '');
+  }
+  renderAds(s.ads || [], s.current_ad);
+
   // Preview
   updatePreview(s);
 }
@@ -663,6 +726,86 @@ function clearTeamTextColor(team) {
 
 function setFont(value) {
   sendUpdate({ text_font: value || null });
+}
+
+// ── Ads ──────────────────────────────────────────────────────────────────────
+function setAdSettings() {
+  const auto = document.getElementById('ad-auto').checked;
+  const interval = parseInt(document.getElementById('ad-interval').value) || 60;
+  send({ type: 'command', action: 'ad_settings', auto, interval_sec: interval });
+}
+function showAdNow(id) {
+  send({ type: 'command', action: 'show_ad', id });
+}
+function stopAd() {
+  send({ type: 'command', action: 'stop_ad' });
+}
+async function addAd() {
+  const textEl = document.getElementById('ad-new-text');
+  const durEl  = document.getElementById('ad-new-duration');
+  const fileEl = document.getElementById('ad-new-image');
+  const text   = textEl.value.trim();
+  const dur    = parseInt(durEl.value) || 15;
+  const file   = fileEl.files[0];
+  if (!text && !file) { alert('Add some text or an image first'); return; }
+  let image = null;
+  if (file) {
+    if (file.size > 4 * 1024 * 1024) { alert('Image too large (max 4 MB)'); return; }
+    image = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+  const r = await fetch('/api/ads', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ text, image, duration_sec: dur }),
+  });
+  if (r.ok) {
+    textEl.value = '';
+    fileEl.value = '';
+    durEl.value  = '15';
+    addLog('Commercial added', 'ok');
+  } else {
+    alert('Failed to save commercial');
+  }
+}
+async function deleteAd(id) {
+  if (!confirm('Delete this commercial?')) return;
+  await fetch('/api/ads/' + encodeURIComponent(id), { method: 'DELETE' });
+  addLog('Commercial deleted', 'ok');
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderAds(ads, currentAd) {
+  const list = document.getElementById('ads-list');
+  if (!ads || ads.length === 0) {
+    list.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--muted)">No commercials yet</div>';
+    return;
+  }
+  list.innerHTML = ads.map(a => {
+    const playing = currentAd && currentAd.id === a.id;
+    const thumb = a.image
+      ? `<div class="ad-thumb"><img src="${escapeHtml(a.image)}" alt=""></div>`
+      : '<div class="ad-thumb"><span class="placeholder">no img</span></div>';
+    const text = escapeHtml(a.text || '(image only)');
+    return `
+      <div class="ad-item${playing ? ' playing' : ''}">
+        ${thumb}
+        <div class="ad-meta">
+          <div class="ad-text-line">${text}</div>
+          <div class="ad-dur">${a.duration_sec}s${playing ? ' · LIVE NOW' : ''}</div>
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn go" onclick="showAdNow('${a.id}')">▶ Show</button>
+          <button class="ad-btn del" onclick="deleteAd('${a.id}')">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function isLight(hex) {
