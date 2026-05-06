@@ -1,0 +1,45 @@
+Scoreboard - quick start
+========================
+
+ONE-TIME SETUP (do this once on the NUC):
+  1. Install Node.js LTS from https://nodejs.org/
+  2. Install Google Chrome (only needed for the LED display).
+  3. Make sure cloudflared is installed and the tunnel is registered.
+     (See README "Cloudflare Tunnel setup" if it's not.)
+  4. Right-click  install-autostart.bat  ->  "Run as administrator".
+
+That's it. The NUC will from now on:
+  - Start the scoreboard server automatically on every boot
+  - Restart the server if it ever crashes
+  - Reconnect the cloudflared tunnel automatically
+  - Launch the Chrome kiosk on the LED screen when anyone logs in
+
+Daily use - useful files in this folder:
+  status.bat              Shows what is running, what is listening on
+                          :3000, the cloudflared service state, and the
+                          last 10 lines of the server log. No admin needed.
+  restart-scoreboard.bat  One-click recovery: stops everything and
+                          starts it again. Use if the public URL or the
+                          controller stops responding.
+  display.bat             Launches just the Chrome kiosk (already wired
+                          up to start automatically on login).
+
+Manual one-shot (no auto-start):
+  RUN.bat                 Runs the server in the foreground and opens
+                          the controller in your default browser. Handy
+                          on a dev PC where you don't want autostart.
+  start.bat               Starts server + Chrome kiosk in one go (the
+                          old launcher; superseded by install-autostart).
+
+URLs:
+  Controller   http://localhost:3000/
+  LED display  http://localhost:3000/display.html
+  Public       https://scorebord-led.nextphase.be/   (via cloudflared)
+
+Find this PC's LAN IP with `ipconfig` -> IPv4 Address. Other phones or
+laptops on the same network reach the controller at  http://<IP>:3000/
+
+Logs:
+  data\server.log   Server stdout + stderr, with a marker line each time
+                    the auto-restart loop kicks in. Trim or delete any
+                    time - it just gets recreated.

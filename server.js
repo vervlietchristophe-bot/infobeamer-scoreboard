@@ -3,6 +3,7 @@ const { WebSocketServer } = require('ws');
 const http       = require('http');
 const path       = require('path');
 const fs         = require('fs');
+const { execFile } = require('child_process');
 
 // ── Session storage (JSON file, 30-day retention) ─────────────────────────────
 const DATA_DIR      = path.join(__dirname, 'data');
@@ -73,7 +74,22 @@ const server = http.createServer(app);
 const wss    = new WebSocketServer({ server });
 
 app.use(express.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Static files. We disable caching for HTML pages and the build zip so that
+// updates show up immediately for both the Chrome kiosk and anyone re-using
+// the /download.html page. Other assets (fonts, images) cache normally.
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') ||
+        filePath.endsWith('.zip')  ||
+        filePath.includes(`${path.sep}downloads${path.sep}`)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  },
+}));
+
 ensureLogosDir();
 ensureSponsorsDir();
 app.use('/logos',    express.static(LOGOS_DIR,    { maxAge: 0 }));
@@ -336,6 +352,52 @@ app.delete('/api/sessions/:id', (req, res) => {
   saveSessions(list);
   res.json({ ok: true });
 });
+
+// ── Portable-build self-download ─────────────────────────────────────────────
+const DOWNLOADS_DIR = path.join(__dirname, 'public', 'downloads');
+const PORTABLE_ZIP  = path.join(DOWNLOADS_DIR, 'scoreboard-portable.zip');
+const BUILD_SCRIPT  = path.join(__dirname, 'tools', 'build-portable.ps1');
+
+if (!fs.existsSync(DOWNLOADS_DIR)) fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
+
+function buildPortableZip() {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(BUILD_SCRIPT)) {
+      return reject(new Error('build script missing: ' + BUILD_SCRIPT));
+    }
+    execFile(
+      'powershell.exe',
+      ['-ExecutionPolicy', 'Bypass', '-NoProfile', '-File', BUILD_SCRIPT],
+      { timeout: 90_000, windowsHide: true },
+      (err, stdout, stderr) => {
+        if (err) return reject(new Error((stderr || err.message).trim()));
+        resolve((stdout || '').trim());
+      }
+    );
+  });
+}
+
+app.get('/api/build-info', (_req, res) => {
+  if (!fs.existsSync(PORTABLE_ZIP)) return res.json({ exists: false });
+  const st = fs.statSync(PORTABLE_ZIP);
+  res.json({ exists: true, size: st.size, mtime: st.mtimeMs });
+});
+
+app.post('/api/rebuild', async (_req, res) => {
+  try {
+    const out = await buildPortableZip();
+    res.json({ ok: true, message: out });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Best-effort initial build at startup (non-blocking).
+if (!fs.existsSync(PORTABLE_ZIP)) {
+  buildPortableZip()
+    .then(out => console.log('[build] portable zip ready:', out))
+    .catch(err => console.warn('[build] could not create portable zip:', err.message));
+}
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () =>

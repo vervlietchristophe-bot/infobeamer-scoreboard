@@ -41,6 +41,10 @@ REM  --user-data-dir   : isolated profile so kiosk state persists
   --no-first-run ^
   --disable-features=TranslateUI ^
   --user-data-dir="%~dp0.chrome-kiosk" ^
+  --disk-cache-size=1 ^
+  --media-cache-size=1 ^
+  --aggressive-cache-discard ^
+  --disable-application-cache ^
   "http://localhost:3000/display.html"
 
 endlocal

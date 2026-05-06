@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoreboard — download build</title>
+<style>
+  :root {
+    --bg:#0b0d14; --surface:#12151f; --card:#191c29; --border:#262a3c;
+    --gold:#f5c518; --green:#22c55e; --red:#ef4444;
+    --text:#e8eaf2; --sub:#8892a8;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:'Barlow', system-ui, sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:28px 32px; max-width:480px; width:100%;
+  }
+  h1 { font-size:21px; letter-spacing:.5px; margin-bottom:6px; }
+  .sub { color:var(--sub); font-size:13px; margin-bottom:22px; }
+  .info {
+    background:var(--card); border:1px solid var(--border); border-radius:8px;
+    padding:12px 16px; font-size:13px; color:#aab; margin-bottom:18px;
+    font-family:ui-monospace, Consolas, monospace; line-height:1.6;
+  }
+  .info strong { color:var(--text); font-family:inherit; }
+  .btn {
+    display:inline-block; padding:10px 20px; border-radius:7px; cursor:pointer;
+    font-size:14px; font-weight:600; letter-spacing:.3px;
+    border:1px solid var(--border); background:var(--card); color:var(--text);
+    text-decoration:none; margin-right:8px;
+    transition:background .15s, border-color .15s;
+    font-family:inherit;
+  }
+  .btn:hover { background:var(--border); }
+  .btn.primary { background:var(--gold); color:#000; border-color:var(--gold); }
+  .btn.primary:hover { background:#d6a900; border-color:#d6a900; }
+  .btn[disabled], .btn[aria-disabled="true"] {
+    opacity:.5; cursor:not-allowed; pointer-events:none;
+  }
+  #status { font-size:12px; color:var(--sub); margin-top:14px; min-height:18px; }
+  .err { color:var(--red); }
+  .ok  { color:var(--green); }
+  code { font-family:ui-monospace, Consolas, monospace; color:var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>📦 Scoreboard build</h1>
+  <div class="sub">Portable .zip — unzip and double-click <code>RUN.bat</code></div>
+
+  <div class="info" id="info">Loading build info…</div>
+
+  <a class="btn primary" id="dl-btn" href="/downloads/scoreboard-portable.zip" download>
+    Download .zip
+  </a>
+  <button class="btn" id="rebuild-btn" onclick="rebuild()">⟳ Refresh build</button>
+
+  <div id="status"></div>
+</div>
+
+<script>
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(2) + ' MB';
+}
+
+async function loadInfo() {
+  const info = document.getElementById('info');
+  const dl   = document.getElementById('dl-btn');
+  try {
+    const r = await fetch('/api/build-info', { cache:'no-store' });
+    const j = await r.json();
+    if (j.exists) {
+      const ts = new Date(j.mtime);
+      info.innerHTML =
+        '<strong>scoreboard-portable.zip</strong><br>' +
+        'Size: ' + fmtBytes(j.size) + '<br>' +
+        'Built: ' + ts.toLocaleString();
+      dl.removeAttribute('aria-disabled');
+    } else {
+      info.textContent = 'No build yet — click “Refresh build”.';
+      dl.setAttribute('aria-disabled', 'true');
+    }
+  } catch (err) {
+    info.innerHTML = '<span class="err">Failed to load build info</span>';
+  }
+}
+
+async function rebuild() {
+  const btn = document.getElementById('rebuild-btn');
+  const st  = document.getElementById('status');
+  btn.disabled = true;
+  st.className = '';
+  st.textContent = 'Building… this takes a few seconds.';
+  try {
+    const r = await fetch('/api/rebuild', { method:'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) {
+      st.className = 'ok';
+      st.textContent = 'Build refreshed. ' + (j.message || '');
+      loadInfo();
+    } else {
+      st.className = 'err';
+      st.textContent = 'Build failed: ' + (j.error || ('HTTP ' + r.status));
+    }
+  } catch (err) {
+    st.className = 'err';
+    st.textContent = 'Build failed: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+loadInfo();
+</script>
+</body>
+</html>
